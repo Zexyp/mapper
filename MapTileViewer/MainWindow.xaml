@@ -3,16 +3,94 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:MapTileViewer"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
-        Title="MainWindow" Height="900" Width="1600" Background="#FF323236" MouseDown="Window_MouseDown" MouseMove="Window_MouseMove" MouseUp="Window_MouseUp" MouseWheel="Window_MouseWheel">
+        Title="Map Tile Viewer" Height="900" Width="1600" Background="#FF323236">
     <Grid>
-        <Viewport3D x:Name="Viewport">
+        <Rectangle Fill="Transparent" MouseDown="Window_MouseDown" MouseMove="Window_MouseMove" MouseUp="Window_MouseUp" MouseWheel="Window_MouseWheel"/>
+        <Viewport3D x:Name="Viewport" MouseDown="Window_MouseDown" MouseMove="Window_MouseMove" MouseUp="Window_MouseUp" MouseWheel="Window_MouseWheel">
             <Viewport3D.Camera>
                 <PerspectiveCamera x:Name="MainCamera" Position="0 0 2" LookDirection="0 0 -1" FieldOfView="90"/>
             </Viewport3D.Camera>
 
         </Viewport3D>
-        <Label x:Name="InfoLabel" Content="InfoLabel" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Foreground="White"/>
+
+        <Label x:Name="InfoLabel" Content="InfoLabel" HorizontalAlignment="Left" Margin="10,0,0,10" VerticalAlignment="Bottom" Foreground="White"/>
+
+        <StackPanel Background="#50000000" HorizontalAlignment="Right" Width="250">
+            <Grid Margin="0,0,0,0" Height="2000" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <Expander Margin="5,5,5,0" Foreground="#ffffff" Background="#50000000" Header="Tiles" VerticalAlignment="Top" Height="23" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+                    <Grid>
+                        <ListView x:Name="TileListBox" Foreground="#ffffff" Background="#00000000" Height="140" VerticalAlignment="Top" Margin="5,5,5,0" MouseUp="TileListBox_MouseUp"/>
+                        <Button Content="Load" Foreground="#ffffff" Background="#ff323232" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="50" Height="23" Margin="20,5,5,20" Click="LoadGeometryButton_Click"/>
+                        <Button Content="Remove" Foreground="#ffffff" Background="#ff323232" HorizontalAlignment="Right" VerticalAlignment="Bottom"  Width="50" Height="23" Margin="5,5,20,20" Click="RemoveGeometryButton_Click"/>
+                    </Grid>
+                </Expander>
+                <Expander Margin="5,33,5,0" Foreground="#ffffff" Background="#50000000" Header="Transform" VerticalAlignment="Top" Height="23" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+                    <Grid>
+                        <Label Content="Position" Foreground="#ffffff" Height="23" VerticalAlignment="Top" Margin="5,5,5,0"/>
+                        <TextBox x:Name="TransformPositionX" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="5,33,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                        <TextBox x:Name="TransformPositionY" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="80,33,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                        <TextBox x:Name="TransformPositionZ" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="155,33,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+
+                        <Label Content="Rotation" Foreground="#ffffff" Height="23" VerticalAlignment="Top" Margin="5,56,5,0"/>
+                        <TextBox x:Name="TransformRotationX" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="5,84,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                        <TextBox x:Name="TransformRotationY" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="80,84,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                        <TextBox x:Name="TransformRotationZ" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="155,84,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+
+                        <Label Content="Scale" Foreground="#ffffff" Height="23" VerticalAlignment="Top" Margin="5,107,5,0"/>
+                        <TextBox x:Name="TransformScaleX" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="5,135,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                        <TextBox x:Name="TransformScaleY" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="80,135,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                        <TextBox x:Name="TransformScaleZ" MouseWheel="TransformTextBox_MouseWheel" KeyDown="TransformTextBox_KeyUp" LostFocus="Transform_LostFocus" HorizontalAlignment="Left" Margin="155,135,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="70" MaxLines="1"/>
+                    </Grid>
+                </Expander>
+                
+                <Expander Margin="5,61,5,0" Foreground="#ffffff" Background="#50000000" Header="Texture" VerticalAlignment="Top" Height="24" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+                    <Grid>
+                        <Image x:Name="TexturePreview" VerticalAlignment="Top" />
+                        <Button Content="Load" Foreground="#ffffff" Background="#ff323232" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="50" Height="23" Margin="20,5,5,20" Click="LoadTextureButton_Click"/>
+                        <Button Content="Remove" Foreground="#ffffff" Background="#ff323232" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="50" Height="23" Margin="5,5,20,20" Click="RemoveTextureButton_Click"/>
+                        <Button Content="⟳" Foreground="#ffffff" Background="#ff323232" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="23" Height="23" Margin="20,5,5,50" Click="RefreshTextureutton_Click"/>
+                    </Grid>
+                </Expander>
+                <Expander Margin="5,89,5,0" Foreground="#ffffff" Background="#50000000" Header="Lighting" VerticalAlignment="Top" Height="24" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+                    <Grid>
+                        <Rectangle x:Name="ColorPreview" Fill="#ffffff" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="150" Height="23" Margin="5,0,0,90"/>
+
+                        <Label x:Name="RedValueLable" Content="-" Foreground="#ffffff" Margin="0,5,5,0" VerticalAlignment="Top" HorizontalAlignment="Right"/>
+                        <Label x:Name="GreenValueLable" Content="-" Foreground="#ffffff" Margin="0,31,5,0" VerticalAlignment="Top" HorizontalAlignment="Right"/>
+                        <Label x:Name="BlueValueLable" Content="-" Foreground="#ffffff" Margin="0,57,5,0" VerticalAlignment="Top" HorizontalAlignment="Right"/>
+
+                        <Slider x:Name="RedSlider" ValueChanged="LightingColorSlider_ValueChanged" Value="255" Minimum="0" Maximum="255" Height="18" Width="150" Margin="5,9,0,0" VerticalAlignment="Top" HorizontalAlignment="Left">
+                            <Slider.Background>
+                                <LinearGradientBrush EndPoint="1,0.5" StartPoint="0,0.5">
+                                    <GradientStop Color="#00000000" Offset="0"/>
+                                    <GradientStop Color="#ff0000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Slider.Background>
+                        </Slider>
+
+                        <Slider x:Name="GreenSlider" ValueChanged="LightingColorSlider_ValueChanged" Value="255" Minimum="0" Maximum="255" Height="18" Width="150" Margin="5,37,0,0" VerticalAlignment="Top" HorizontalAlignment="Left">
+                            <Slider.Background>
+                                <LinearGradientBrush EndPoint="1,0.5" StartPoint="0,0.5">
+                                    <GradientStop Color="#00000000" Offset="0"/>
+                                    <GradientStop Color="#00ff00" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Slider.Background>
+                        </Slider>
+
+                        <Slider x:Name="BlueSlider" ValueChanged="LightingColorSlider_ValueChanged" Value="255" Minimum="0" Maximum="255" Height="18" Width="150" Margin="5,61,0,0" VerticalAlignment="Top" HorizontalAlignment="Left">
+                            <Slider.Background>
+                                <LinearGradientBrush EndPoint="1,0.5" StartPoint="0,0.5">
+                                    <GradientStop Color="#00000000" Offset="0"/>
+                                    <GradientStop Color="#0000ff" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Slider.Background>
+                        </Slider>
+                    </Grid>
+                </Expander>
+                
+            </Grid>
+        </StackPanel>
     </Grid>
 </Window>
