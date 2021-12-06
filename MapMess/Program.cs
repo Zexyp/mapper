@@ -15,7 +15,7 @@ namespace MapMess
             //mapReader.ReadHeader();
             //mapReader.ReadMesh();
             //binaryReader.Close();
-            MapDownloader.GetConfig();
+            //MapDownloader.GetConfig();
             Console.ReadKey();
         }
     }

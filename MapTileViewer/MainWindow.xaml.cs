@@ -16,7 +16,7 @@ using System.IO;
 
 using System.Windows.Media.Media3D;
 
-using MapMess;
+using Mapper;
 
 namespace MapTileViewer
 {
@@ -146,41 +146,39 @@ namespace MapTileViewer
             MeshGeometry3D mesh = new MeshGeometry3D();
             ModelVisual3D modelVisual = new ModelVisual3D();
 
-            BinaryReader binaryReader = new BinaryReader(File.Open(path, FileMode.Open));
-            //MapDownloader.GetMap(21,570398,354669)
-            MapReader mapReader = new MapReader(binaryReader);
-            mapReader.ReadBinary();
-            mapReader.ReadHeader();
-            MapMesh mapMesh = mapReader.ReadMesh();
-
-            binaryReader.Close();
+            MapMesh mapFullMesh;
+            using (Stream stream = File.Open(path, FileMode.Open))
+            {
+                mapFullMesh = MapMeshOperator.ParseMesh(stream);
+            }
+            MapSubmesh mapMesh = mapFullMesh.submeshes[0];
 
             int x = 0;
             int y = 0;
             int z = 0;
 
-            for (int i = 0; i < mapMesh.vertices.Length - 3; i += 3, x = mapMesh.vertices[i], y = mapMesh.vertices[i + 1], z = mapMesh.vertices[i + 2])
+            for (int i = 0; i < ((ushort[])mapMesh.vertices).Length - 3; i += 3, x = ((ushort[])mapMesh.vertices)[i], y = ((ushort[])mapMesh.vertices)[i + 1], z = ((ushort[])mapMesh.vertices)[i + 2])
             {
                 mesh.Positions.Add(new Point3D((double)x / 65536, (double)y / 65536, (double)z / 65536));
             }
-
-            for (int i = 3; i < mapMesh.indices.Length; i++)
+            
+            for (int i = 3; i < ((ushort[])mapMesh.indices).Length; i++)
             {
-                mesh.TriangleIndices.Add(mapMesh.indices[i]);
+                mesh.TriangleIndices.Add(((ushort[])mapMesh.indices)[i]);
             }
-
-            for (int i = 0; i < mapMesh.internalUVs.Length - 2; i += 2, x = mapMesh.internalUVs[i], y = mapMesh.internalUVs[i + 1])
+            
+            for (int i = 0; i < ((ushort[])mapMesh.internalUVs).Length - 2; i += 2, x = ((ushort[])mapMesh.internalUVs)[i], y = ((ushort[])mapMesh.internalUVs)[i + 1])
             {
                 mesh.TextureCoordinates.Add(new Point((double)x / 65536, (double)y / 65536));
             }
 
-            //for (int i = 0; i < Mapper.n.indices.Length; i++)
+            //for (int i = 0; i < ((ushort[])mapMesh.internalUVs).Length; i++)
             //{
-            //    x = Mapper.n.vertices[Mapper.n.indices[i]*3];
-            //    y = Mapper.n.vertices[Mapper.n.indices[i]*3+1];
-            //    z = Mapper.n.vertices[Mapper.n.indices[i]*3+2];
-            //    int uvx = Mapper.n.internalUVs[Mapper.n.indices[i]*2];
-            //    int uvy = Mapper.n.internalUVs[Mapper.n.indices[i]*2+1];
+            //    x = ((ushort[])mapMesh.vertices)[((ushort[])mapMesh.indices)[i]*3];
+            //    y = ((ushort[])mapMesh.vertices)[((ushort[])mapMesh.indices)[i]*3+1];
+            //    z = ((ushort[])mapMesh.vertices)[((ushort[])mapMesh.indices)[i]*3+2];
+            //    int uvx = ((ushort[])mapMesh.internalUVs)[((ushort[])mapMesh.indices)[i]*2];
+            //    int uvy = ((ushort[])mapMesh.internalUVs)[((ushort[])mapMesh.indices)[i]*2+1];
             //    mesh.Positions.Add(new Point3D((double)x / 65536, (double)y / 65536, (double)z / 65536));
             //    mesh.TextureCoordinates.Add(new Point((double)uvx / 65536, (double)uvy / 65536));
             //}
@@ -242,7 +240,7 @@ namespace MapTileViewer
         {
             Microsoft.Win32.OpenFileDialog fileDialog = new Microsoft.Win32.OpenFileDialog();
             fileDialog.Filter = "*.bin|*.bin|*.*|*.*";
-            fileDialog.InitialDirectory = Environment.CurrentDirectory;
+            //fileDialog.InitialDirectory = Environment.CurrentDirectory;
             if (fileDialog.ShowDialog() == true && File.Exists(fileDialog.FileName))
                 LoadMapTile(fileDialog.FileName);
             else
@@ -407,7 +405,7 @@ namespace MapTileViewer
 
             Microsoft.Win32.OpenFileDialog fileDialog = new Microsoft.Win32.OpenFileDialog();
             fileDialog.Filter = "*.jpg|*.jpg|*.*|*.*";
-            fileDialog.InitialDirectory = Environment.CurrentDirectory;
+            //fileDialog.InitialDirectory = Environment.CurrentDirectory;
             if (fileDialog.ShowDialog() == true && File.Exists(fileDialog.FileName))
                 LoadTexture(fileDialog.FileName, loadedTiles[(string)TileListBox.SelectedValue]);
 
