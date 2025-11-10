@@ -1,5 +1,6 @@
 ﻿using System;
 
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -10,7 +11,7 @@ using System.Text;
 
 namespace Mapper
 {
-    public class MapMeshOperator
+    public class Parser
     {
         const byte flagsInternalTexcoords = 1;
         const byte flagsExternalTexcoords = 2;
@@ -26,50 +27,50 @@ namespace Mapper
                 // header
                 if (reader.BaseStream.Length < 2)
                 {
-                    Log.Error("[Mapper] invalid stream length");
+                    Log.Error("invalid stream length");
                     return null;
                 }
 
                 string magic = new string(reader.ReadChars(2));
                 if (magic != "ME")
                 {
-                    Log.Error("[Mapper] magic does not match");
+                    Log.Error("file magic does not match");
                     return null;
                 }
 
-                mesh.version = reader.ReadUInt16();
+                mesh.Version = reader.ReadUInt16();
 
-                if (mesh.version > 3)
+                if (mesh.Version > 3)
                 {
-                    Log.Error("[Mapper] invalid file version");
+                    Log.Error("invalid file version");
                     return null;
                 }
 
-                mesh.meanUndulation = reader.ReadDouble();
-                mesh.numSubmeshes = reader.ReadUInt16();
+                mesh.MeanUndulation = reader.ReadDouble();
+                mesh.NumSubmeshes = reader.ReadUInt16();
                 // end of header
 
-                var submeshes = new List<MapSubmesh>(mesh.numSubmeshes);
-                mesh.gpuSize = 0;
-                mesh.faces = 0;
-                mesh.size = 0;
+                var submeshes = new List<MapSubmesh>(mesh.NumSubmeshes);
+                mesh.GpuSize = 0;
+                mesh.Faces = 0;
+                mesh.Size = 0;
 
-                for (int i = 0, li = mesh.numSubmeshes; i < li; i++)
+                for (int i = 0, li = mesh.NumSubmeshes; i < li; i++)
                 {
                     MapSubmesh submesh = ParseSubmesh(mesh, reader);
-                    if (submesh.valid)
+                    if (submesh.Valid)
                     {
                         submeshes.Add(submesh);
-                        mesh.size += submesh.size;
-                        mesh.faces += submesh.faces;
+                        mesh.Size += submesh.Size;
+                        mesh.Faces += submesh.Faces;
 
                         //aproximate useless size
-                        mesh.gpuSize += submesh.size;
+                        mesh.GpuSize += submesh.Size;
                     }
                 }
 
-                mesh.numSubmeshes = (ushort)submeshes.Count;
-                mesh.submeshes = submeshes.ToArray();
+                mesh.NumSubmeshes = (ushort)submeshes.Count;
+                mesh.Submeshes = submeshes.ToArray();
 
                 return mesh;
             }
@@ -78,37 +79,31 @@ namespace Mapper
         static MapSubmesh ParseSubmesh(MapMesh mesh, BinaryReader reader)
         {
             MapSubmesh submesh = new MapSubmesh();
-            submesh.valid = true;
+            submesh.Valid = true;
 
             ParseSubmeshHeader(mesh, submesh, reader);
-            if (mesh.version >= 3)
-            {
-                ParseVerticesAndFaces2(mesh, submesh, reader);
-            }
-            else
-            {
-                throw new NotImplementedException("lower version than 3 is not implemented!");
-                //ParseVerticesAndFaces(mesh, submesh, reader);
-            }
+            if (mesh.Version < 3 || mesh.Version > 3)
+                throw new NotImplementedException("different version than 3 is not implemented!");
+            ParseVerticesAndFaces2(mesh, submesh, reader);
 
             return submesh;
         }
 
         static void ParseSubmeshHeader(MapMesh mesh, MapSubmesh submesh, BinaryReader reader)
         {
-            submesh.flags = reader.ReadByte();
+            submesh.Flags = reader.ReadByte();
 
-            if (mesh.version > 1)
+            if (mesh.Version > 1)
             {
-                submesh.surfaceReference = reader.ReadByte();
+                submesh.SurfaceReference = reader.ReadByte();
             }
             else
             {
-                submesh.surfaceReference = 0;
+                submesh.SurfaceReference = 0;
             }
 
-            submesh.textureLayer = reader.ReadUInt16();
-            submesh.textureLayer2 = submesh.textureLayer; // can't belive they done this
+            submesh.TextureLayer = reader.ReadUInt16();
+            submesh.TextureLayer2 = submesh.TextureLayer; // can't belive they done this
 
             double[] bboxMin = new double[3];
             double[] bboxMax = new double[3];
@@ -121,8 +116,8 @@ namespace Mapper
             bboxMax[1] = reader.ReadDouble();
             bboxMax[2] = reader.ReadDouble();
 
-            submesh.bboxMin = bboxMin;
-            submesh.bboxMax = bboxMax;
+            submesh.BBoxMin = bboxMin;
+            submesh.BBoxMax = bboxMax;
         }
 
         static void ParseVerticesAndFaces2(MapMesh mesh, MapSubmesh submesh, BinaryReader reader)
@@ -134,18 +129,18 @@ namespace Mapper
 
             if (numVertices == 0)
             {
-                submesh.valid = false;
+                submesh.Valid = false;
             }
 
-            double[] center = { (submesh.bboxMin[0] + submesh.bboxMax[0]) / 2, (submesh.bboxMin[1] + submesh.bboxMax[1]) / 2, (submesh.bboxMin[2] + submesh.bboxMax[2]) / 2 };
-            double scale = Math.Abs(Math.Max(Math.Max(submesh.bboxMax[0] - submesh.bboxMin[0], submesh.bboxMax[1] - submesh.bboxMin[1]), submesh.bboxMax[2] - submesh.bboxMin[2]));
+            double[] center = { (submesh.BBoxMin[0] + submesh.BBoxMax[0]) / 2, (submesh.BBoxMin[1] + submesh.BBoxMax[1]) / 2, (submesh.BBoxMin[2] + submesh.BBoxMax[2]) / 2 };
+            double scale = Math.Abs(Math.Max(Math.Max(submesh.BBoxMax[0] - submesh.BBoxMin[0], submesh.BBoxMax[1] - submesh.BBoxMin[1]), submesh.BBoxMax[2] - submesh.BBoxMin[2]));
 
             double multiplier = 1.0 / quant;
 
-            object externalUVs = null;
-            object internalUVs = null;
+            Array externalUVs = null;
+            Array internalUVs = null;
 
-            object vertices = Config.Map16bitMeshes ? (new ushort[numVertices * 3]) : (new float[numVertices * 3]);
+            Array vertices = Config.Map16bitMeshes ? (new ushort[numVertices * 3]) : (new float[numVertices * 3]);
 
             long x = 0;
             long y = 0;
@@ -155,13 +150,13 @@ namespace Mapper
             double cy = center[1];
             double cz = center[2];
 
-            double mx = submesh.bboxMin[0];
-            double my = submesh.bboxMin[1];
-            double mz = submesh.bboxMin[2];
+            double mx = submesh.BBoxMin[0];
+            double my = submesh.BBoxMin[1];
+            double mz = submesh.BBoxMin[2];
 
-            double sx = 1.0 / (submesh.bboxMax[0] - submesh.bboxMin[0]);
-            double sy = 1.0 / (submesh.bboxMax[1] - submesh.bboxMin[1]);
-            double sz = 1.0 / (submesh.bboxMax[2] - submesh.bboxMin[2]);
+            double sx = 1.0 / (submesh.BBoxMax[0] - submesh.BBoxMin[0]);
+            double sy = 1.0 / (submesh.BBoxMax[1] - submesh.BBoxMin[1]);
+            double sz = 1.0 / (submesh.BBoxMax[2] - submesh.BBoxMin[2]);
 
             long[] res = { 0, reader.BaseStream.Position };
 
@@ -211,7 +206,7 @@ namespace Mapper
 
             reader.BaseStream.Position = res[1];
 
-            if ((submesh.flags & flagsExternalTexcoords) > 0)
+            if ((submesh.Flags & flagsExternalTexcoords) > 0)
             {
                 quant = reader.ReadUInt16();
                 res[1] = reader.BaseStream.Position;
@@ -272,9 +267,9 @@ namespace Mapper
 
             var tmpVertices = vertices;
             var tmpExternalUVs = externalUVs;
-            object tmpInternalUVs = null;
+            Array tmpInternalUVs = null;
 
-            if ((submesh.flags & flagsInternalTexcoords) > 0)
+            if ((submesh.Flags & flagsInternalTexcoords) > 0)
             {
                 ushort numUVs = reader.ReadUInt16();
                 ushort quantU = reader.ReadUInt16();
@@ -329,8 +324,8 @@ namespace Mapper
             internalUVs = null;
             externalUVs = null;
 
-            bool onlyExternalIndices = (Config.MapIndexBuffers && Config.MapOnlyOneUVs && !((submesh.flags & flagsInternalTexcoords) > 0));
-            bool onlyInternalIndices = (Config.MapIndexBuffers && Config.MapOnlyOneUVs && ((submesh.flags & flagsInternalTexcoords) > 0));
+            bool onlyExternalIndices = (Config.MapIndexBuffers && Config.MapOnlyOneUVs && !((submesh.Flags & flagsInternalTexcoords) > 0));
+            bool onlyInternalIndices = (Config.MapIndexBuffers && Config.MapOnlyOneUVs && ((submesh.Flags & flagsInternalTexcoords) > 0));
             bool onlyIndices = onlyExternalIndices || onlyInternalIndices;
 
             if (onlyIndices)
@@ -341,12 +336,12 @@ namespace Mapper
             {
                 vertices = Config.Map16bitMeshes ? (new ushort[numFaces * 3 * 3]) : (new float[numFaces * 3 * 3]);
 
-                if ((submesh.flags & flagsInternalTexcoords) > 0)
+                if ((submesh.Flags & flagsInternalTexcoords) > 0)
                 {
                     internalUVs = Config.Map16bitMeshes ? (new ushort[numFaces * 3 * 2]) : (new float[numFaces * 3 * 2]);
                 }
 
-                if (!Config.MapOnlyOneUVs && ((submesh.flags & flagsExternalTexcoords) > 0))
+                if (!Config.MapOnlyOneUVs && ((submesh.Flags & flagsExternalTexcoords) > 0))
                 {
                     externalUVs = Config.Map16bitMeshes ? (new ushort[numFaces * 3 * 2]) : (new float[numFaces * 3 * 2]);
                 }
@@ -422,7 +417,7 @@ namespace Mapper
 
             if (onlyInternalIndices)
             {
-                vertices = Config.Map16bitMeshes ? (new ushort[(GetLengthOfArray(iUVs) / 2) * 3]) : (new float[(GetLengthOfArray(iUVs) / 2) * 3]);
+                vertices = Config.Map16bitMeshes ? (new ushort[(iUVs.Length / 2) * 3]) : (new float[(iUVs.Length / 2) * 3]);
                 internalUVs = tmpInternalUVs;
             }
 
@@ -512,20 +507,21 @@ namespace Mapper
 
             reader.BaseStream.Position = res[1];
 
-            submesh.vertices = vertices;
-            submesh.internalUVs = internalUVs;
-            submesh.externalUVs = externalUVs;
-            submesh.indices = indices;
+            submesh.Vertices = vertices;
+            submesh.InternalUVs = internalUVs;
+            submesh.ExternalUVs = externalUVs;
+            submesh.Indices = indices;
 
             //tmpVertices = null;
             //tmpInternalUVs = null;
             //tmpExternalUVs = null;
 
-            submesh.size = (uint)(Config.Map16bitMeshes ? GetLengthOfArray(submesh.vertices) * sizeof(ushort) : GetLengthOfArray(submesh.vertices) * sizeof(float));
-            if (submesh.internalUVs != null) submesh.size += (uint)(Config.Map16bitMeshes ? GetLengthOfArray(submesh.internalUVs) * sizeof(ushort) : GetLengthOfArray(submesh.internalUVs) * sizeof(float));
-            if (submesh.externalUVs != null) submesh.size += (uint)(Config.Map16bitMeshes ? GetLengthOfArray(submesh.externalUVs) * sizeof(ushort) : GetLengthOfArray(submesh.externalUVs) * sizeof(float));
-            if (submesh.indices != null) submesh.size += (uint)(Config.Map16bitMeshes ? GetLengthOfArray(submesh.indices) * sizeof(ushort) : GetLengthOfArray(submesh.externalUVs) * sizeof(float));
-            submesh.faces = numFaces;
+            var elementSize = Config.Map16bitMeshes ? sizeof(ushort) : sizeof(float);
+            submesh.Size = (uint)(elementSize * submesh.Vertices.Length);
+            if (submesh.InternalUVs != null) submesh.Size += (uint)(elementSize * submesh.InternalUVs.Length);
+            if (submesh.ExternalUVs != null) submesh.Size += (uint)(elementSize * submesh.ExternalUVs.Length);
+            if (submesh.Indices != null) submesh.Size += (uint)(elementSize * submesh.Indices.Length);
+            submesh.Faces = numFaces;
         }
 
         static void ParseDelta(byte[] data, long[] res)
@@ -586,45 +582,109 @@ namespace Mapper
             reader.BaseStream.Position = pos;
             return buffer;
         }
-
-        static int GetLengthOfArray(object obj)
-        {
-            int len = 0;
-            if (obj.GetType() == typeof(ushort[]))
-                len = ((ushort[])obj).Length;
-            if (obj.GetType() == typeof(float[]))
-                len = ((float[])obj).Length;
-            return len;
-        }
     }
 
-    static class Config
+    internal class Config
     {
         public static bool Map16bitMeshes { get; private set; } = true;
         public static bool MapOnlyOneUVs { get; private set; } = true;
         public static bool MapIndexBuffers { get; private set; } = true;
-
-        public static string BaseURL { get; private set; } = "https://mapserver-3d.mapy.cz/";
-        public static string MapConfigAddress { get; private set; } = "scenes/latest/mapConfig.json";
-        public static string MapMeshAddress { get; private set; } = "latestStage/tilesets/cities/{lod}-{x}-{y}.bin";
-        public static string MapTextureAddress { get; private set; } = "latestStage/tilesets/cities/{lod}-{x}-{y}-{sub}.jpg";
-        public static string TilesetAddress { get; private set; } = "";
+        
+        //public static string BaseURL { get; private set; } = "https://mapserver-3d.mapy.cz/";
+        //public static string MapConfigAddress { get; private set; } = "scenes/latest/mapConfig.json";
+        //public static string MapMeshAddress { get; private set; } = "latestStage/tilesets/cities/{lod}-{x}-{y}.bin";
+        //public static string MapTextureAddress { get; private set; } = "latestStage/tilesets/cities/{lod}-{x}-{y}-{sub}.jpg";
+        //public static string TilesetAddress { get; private set; } = "";
     }
 
-    internal static class Log
-    {
-        public static void Error(string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(message);
-            Console.ResetColor();
-        }
+    /*
+    default config reference
 
-        public static void Communication(string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(message);
-            Console.ResetColor();
-        }
-    }
+    map: null,
+    mapCache: 1100,
+    mapGPUCache: 600,
+    mapMetatileCache: 60,
+    mapTexelSizeFit: 1.1,
+    mapMaxHiresLodLevels: 2,
+    mapDownloadThreads: 20,
+    mapMaxProcessingTime: 10,
+    mapMaxGeodataProcessingTime: 10,
+    mapMobileMode: !1,
+    mapMobileModeAutodect: !0,
+    mapMobileDetailDegradation: 1,
+    mapNavSamplesPerViewExtent: 4,
+    mapIgnoreNavtiles: !1,
+    mapVirtualSurfaces: !0,
+    mapAllowHires: !0,
+    mapAllowLowres: !0,
+    mapAllowSmartSwitching: !0,
+    mapDisableCulling: !1,
+    mapPreciseCulling: !0,
+    mapHeightLodBlend: !0,
+    mapHeightNodeBlend: !0,
+    mapBasicTileSequence: !1,
+    mapPreciseBBoxTest: !1,
+    mapPreciseDistanceTest: !1,
+    mapHeightfiledWhenUnloaded: !0,
+    mapForceMetatileV3: !1,
+    mapSmartNodeParsing: !0,
+    mapLoadErrorRetryTime: 3e3,
+    mapLoadErrorMaxRetryCount: 3,
+    mapLoadMode: "topdown",
+    mapGeodataLoadMode: "fit",
+    mapSplitMeshes: !0,
+    mapSplitMargin: .0025,
+    mapSplitSpace: null,
+    mapSplitLods: !1,
+    mapGridMode: "linear",
+    mapGridSurrogatez: !1,
+    mapGridUnderSurface: 0,
+    mapGridTextureLevel: -1,
+    mapGridTextureLayer: null,
+    mapXhrImageLoad: !0,
+    mapStoreLoadStats: !1,
+    mapRefreshCycles: 3,
+    mapSoftViewSwitch: !0,
+    mapSortHysteresis: !0,
+    mapHysteresisWait: 0,
+    mapSeparateLoader: !0,
+    mapGeodataBinaryLoad: !0,
+    mapPackLoaderEvents: !0,
+    mapParseMeshInWorker: !0,
+    mapPackGeodataEvents: !0,
+    mapCheckTextureSize: !1,
+    mapTraverseToMeshNode: !0,
+    mapNormalizeOctantTexelSize: !0,
+    mapFeatureStickMode: [1, 1],
+    map16bitMeshes: !0,
+    mapOnlyOneUVs: !1,
+    mapIndexBuffers: !0,
+    mapAsyncImageDecode: !0,
+    mapFeatureGridCells: 31,
+    mapFeaturesPerSquareInch: .25,
+    mapFeaturesSortByTop: !1,
+    mapFeaturesReduceMode: "scr-count1",
+    mapFeaturesReduceParams: null,
+    mapFeaturesReduceFactor: 1,
+    mapFeaturesReduceFactor2: 1,
+    mapDMapSize: 1024,
+    mapDMapMode: 1,
+    mapDegradeHorizon: !1,
+    mapDegradeHorizonParams: [1, 1500, 97500, 3500],
+    mapDefaultFont: "//cdn.melown.com/libs/vtsjs/fonts/noto-basic/1.0.0/noto.fnt",
+    mapFog: !0,
+    mapNoTextures: !1,
+    mapMetricUnits: !("en" == a || 0 == a.indexOf("en-")),
+    mapLanguage: a,
+    mapForceFrameTime: 0,
+    mapForcePipeline: 0,
+    mapLogGeodataStyles: !0,
+    mapBenevolentMargins: !1,
+    rendererAnisotropic: 0,
+    rendererAntialiasing: !0,
+    rendererAllowScreenshots: !1,
+    inspector: !0,
+    authorization: null,
+    mario: !1
+    */
 }

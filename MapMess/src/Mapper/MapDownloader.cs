@@ -6,23 +6,43 @@ using System.Net;
 using System.Text.Json;
 using System.Drawing;
 using System.Text;
+using System.Linq;
 
 namespace Mapper
 {
     public class MapDowloader
     {
-        static public Stream GetMapMesh(int lod, int x, int y)
+        private static string FillTileUrlPattern(string inp, int lod, int x, int y, int sub = 0)
+        {
+            return inp.Replace("{lod}", lod.ToString())
+                      .Replace("{x}", x.ToString())
+                      .Replace("{y}", y.ToString())
+                      .Replace("{sub}", sub.ToString());
+        }
+
+        private static string Dirname(string path)
+        {
+            if (path.EndsWith("/"))
+            {
+                path = path.TrimEnd('/');
+            }
+
+            string[] segments = path.Split('/');
+
+            return string.Join("/", segments, 0, segments.Length - 1);
+        }
+
+        public static Stream GetMesh(MapConfig cfg, MapConfigSurface scfg, int lod, int x, int y)
         {
             try
             {
-                string fullurl = Config.BaseURL + Config.MapMeshAddress
-                    .Replace("{lod}", lod.ToString())
-                    .Replace("{x}", x.ToString())
-                    .Replace("{y}", y.ToString());
-                Log.Communication("[Mapper] dowloading map mesh from: " + fullurl);
+                var url = Path.Join(Dirname(cfg.Root), scfg.MeshUrl);
+                url = FillTileUrlPattern(url, lod, x, y);
 
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(fullurl);
-                request.AutomaticDecompression = DecompressionMethods.GZip;
+                Log.Communication($"dowloading mesh '{url}'");
+
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                request.AutomaticDecompression = DecompressionMethods.GZip; // this might be a problem later
                 WebResponse response = request.GetResponse();
 
                 MemoryStream stream = new MemoryStream();
@@ -37,28 +57,24 @@ namespace Mapper
             }
             catch (WebException e)
             {
-                Log.Error("[Mapper] map mesh download failed (" + e.Message + ")");
+                Log.Error($"mesh download failed: \n{e.Message}");
                 return Stream.Null;
             }
         }
 
-        static public Image GetMapTexture(int lod, int x, int y)
+        public static Image GetMapTexture(MapConfig cfg, MapConfigSurface scfg, int lod, int x, int y)
         {
             try
             {
-                string fullurl = Config.BaseURL + Config.MapTextureAddress
-                    .Replace("{lod}", lod.ToString())
-                    .Replace("{x}", x.ToString())
-                    .Replace("{y}", y.ToString())
-                    .Replace("{sub}", 0.ToString());
-                Log.Communication("[Mapper] dowloading map texture from: " + fullurl);
+                var url = Path.Join(Dirname(cfg.Root), scfg.TextureUrl);
+                url = FillTileUrlPattern(url, lod, x, y);
 
+                Log.Communication($"dowloading texture '{url}'");
 
-                WebRequest request = WebRequest.Create(fullurl);
+                WebRequest request = WebRequest.Create(url);
                 WebResponse response = request.GetResponse();
 
                 Image image = Image.FromStream(response.GetResponseStream());
-                //bitmap.Save("boi.jpg");
 
                 response.Close();
                 response.Dispose();
@@ -67,7 +83,54 @@ namespace Mapper
             }
             catch (WebException e)
             {
-                Log.Error("[Mapper] map texture download failed (" + e.Message + ")");
+                Log.Error($"texture download failed: \n{e.Message}");
+                return null;
+            }
+        }
+
+        public static MapConfig GetConfig(string url)
+        {
+            try
+            {
+                Log.Communication($"dowloading config '{url}'");
+
+                WebRequest request = WebRequest.Create(url);
+                WebResponse response = request.GetResponse();
+
+                MapConfig mc = new MapConfig();
+                mc.Root = url;
+
+                using (JsonDocument document = JsonDocument.Parse(response.GetResponseStream()))
+                {
+                    var surfaces = document.RootElement.GetProperty("surfaces");
+                    mc.Surfaces = new MapConfigSurface[surfaces.GetArrayLength()];
+
+                    int i = 0;
+                    foreach (var surface in surfaces.EnumerateArray())
+                    {
+                        var mapSurface = new MapConfigSurface();
+
+                        mapSurface.Id = surface.GetProperty("id").GetString();
+                        mapSurface.MeshUrl = surface.GetProperty("meshUrl").GetString();
+                        mapSurface.TextureUrl = surface.GetProperty("textureUrl").GetString();
+                        mapSurface.LodRange = surface.GetProperty("lodRange").EnumerateArray().Select(e => e.GetInt32()).ToArray();
+                        mapSurface.TileRange = surface.GetProperty("tileRange").EnumerateArray().Select(e => e.EnumerateArray().Select(e => e.GetInt32()).ToArray()).ToArray();
+
+                        mc.Surfaces[i] = mapSurface;
+                        i++;
+                    }
+
+
+                }
+
+                response.Close();
+                response.Dispose();
+
+                return mc;
+            }
+            catch (WebException e)
+            {
+                Log.Error($"config download failed: \n{e.Message}");
                 return null;
             }
         }
