@@ -12,6 +12,8 @@ namespace Mapper
 {
     public class MapDowloader
     {
+        // TODO: fix duplicate streams
+        
         private static string FillTileUrlPattern(string inp, int lod, int x, int y, int sub = 0)
         {
             return inp.Replace("{lod}", lod.ToString())
@@ -62,7 +64,7 @@ namespace Mapper
             }
         }
 
-        public static Image GetMapTexture(MapConfig cfg, MapConfigSurface scfg, int lod, int x, int y)
+        public static Stream GetMapTexture(MapConfig cfg, MapConfigSurface scfg, int lod, int x, int y)
         {
             try
             {
@@ -74,12 +76,15 @@ namespace Mapper
                 WebRequest request = WebRequest.Create(url);
                 WebResponse response = request.GetResponse();
 
-                Image image = Image.FromStream(response.GetResponseStream());
-
+                MemoryStream stream = new MemoryStream();
+                response.GetResponseStream().CopyTo(stream);
+                
                 response.Close();
                 response.Dispose();
 
-                return image;
+                stream.Position = 0;
+
+                return stream;
             }
             catch (WebException e)
             {
