@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Mapper
 {
-    public class Parser
+    public class MapParser
     {
         const byte flagsInternalTexcoords = 1;
         const byte flagsExternalTexcoords = 2;
