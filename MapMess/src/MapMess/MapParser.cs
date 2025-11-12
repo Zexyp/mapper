@@ -8,7 +8,7 @@ using System.Text;
 
 // v2.0
 
-namespace Mapper
+namespace MapMess
 {
     public class MapParser
     {

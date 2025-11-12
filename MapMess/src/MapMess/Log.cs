@@ -1,6 +1,6 @@
 using System;
 
-namespace Mapper
+namespace MapMess
 {
     public static class Log
     {

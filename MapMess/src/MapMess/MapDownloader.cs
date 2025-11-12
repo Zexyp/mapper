@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Text;
 using System.Linq;
 
-namespace Mapper
+namespace MapMess
 {
     public class MapDowloader
     {

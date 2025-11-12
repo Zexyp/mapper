@@ -1,4 +1,4 @@
-# mapper
+# MapMess
 This project is about reading binary mesh files from [Mapy.cz](https://mapy.cz/) (similar site to Google Maps).
 
 ## Map Tile Viewer
